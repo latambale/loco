@@ -10,6 +10,7 @@ deployments-yamls/loco-deployment.yaml
 metrics-server-yamls/components.yaml
 hpa-yamls/loco-hpa.yaml
 nginx-yamls/loco-ingress.yaml
+app/ - for application code and Dockerfile
 
 ---------------------------------------------
 
@@ -69,6 +70,10 @@ kubectl apply -f hpa-yamls/loco-hpa.yaml --namespace=loco
 -- kubectl get po -n loco --watch
 -- kubectl logs loco-app-696946554f-fjv6s -n loco -f
 -- kubectl get hpa -A
+-- kubectl rollout restart deployment ingress-nginx-controller -n ingress-nginx
+-- kubectl logs -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx
+-- kubectl get endpoints loco-app-service -n loco
+-- kubectl edit deploy metrics-server -n kube-system
 
 ---------------------------------------------
 
@@ -119,11 +124,11 @@ Command to Monitor pods:
 
 ---------------------------------------------
 
-10. Troubleshooting and Analysis while Deployment:
+10. Mistakes made, Lessons Learned:
 
 -----------------------
 
--- Issues while Installing HPA:
+-- Issues faced in Installing HPA:
 While applying hpa, as minikube cluster was not supporting "apiVersion: autoscaling/v2beta2" and it was asking me to install CRDs first.
 First I checked all the api-versions on cluster:
 
@@ -135,7 +140,7 @@ and re-applied the yaml file.
 
 -----------------------
 
--- Issues in Metrics Server:
+-- Issues faced in Metrics Server:
 After installing HPA successfully, I was not able to get the proper output for hpa.
 
 (.venv) PS C:\Users\Saurabh\Loco\Loco> kubectl get hpa -A
@@ -159,7 +164,7 @@ loco        loco-hpa   Deployment/loco-app   cpu: 0%/60%   3         10        3
 
 -----------------------
 
--- Issues in Testing HPA:
+-- Issues faced in Testing HPA:
 
 I needed to know that HPA is able to manage the CPU utilization. So I started testing pods for it.
 
