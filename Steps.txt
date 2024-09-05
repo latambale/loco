@@ -14,7 +14,7 @@ app/ - for application code and Dockerfile
 
 ---------------------------------------------
 
-2. Create a simple node.js application which will print "Hello World!" and run on port 80.
+2. Created a simple node.js application which will print "Hello World!" and run on port 80.
 Created app.js
 Installed npm - npm install
 Installed express - npm install express
