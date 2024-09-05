@@ -4,10 +4,10 @@ metadata:
   name: loco-app-service
 spec:
   selector:
-    app: loco-app   # This must match the labels of your deployment or pods
+    app: loco-app
   ports:
-    - port: 80      # The port that the service will listen on
-      targetPort: 80 # The port that the container is exposing
+    - port: 80
+      targetPort: 80
       protocol: TCP
       name: http
-  type: ClusterIP  # This is the default and does not expose the service externally
+  type: ClusterIP
