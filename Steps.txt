@@ -1,0 +1,188 @@
+Steps:
+
+I had minikube and docker already setup on my local, so I won't write about it here.
+Starting with task I followed below steps.
+
+1. Created folder structure and yaml files:
+namespace-yamls/loco-namespace.yaml
+service-yamls/loco-service.yaml
+deployments-yamls/loco-deployment.yaml
+metrics-server-yamls/components.yaml
+hpa-yamls/loco-hpa.yaml
+nginx-yamls/loco-ingress.yaml
+
+---------------------------------------------
+
+2. Create a simple node.js application which will print "Hello World!" and run on port 80.
+Created app.js
+Installed npm - npm install
+Installed express - npm install express
+package.json was created, modified existing package.json.
+
+---------------------------------------------
+3. Created a Dockerfile to build an image for the node.js app and pushed it into my docker.hub repo (saurabhlatambale/loco)
+
+The code setup for simple node.js application and Dockerfile are stored in "app" So:
+
+cd app/
+
+To build the docker image:
+-- docker build -t loco-app-image .
+
+To check if docker image is created or not:
+-- docker images
+
+To run the container for testing:
+-- docker run -d --name=loco-app -p 80:80 loco-app-image
+
+Stopped the container after testing:
+-- docker stop loco-app
+
+Deleted the container after testing:
+-- docker rm loco-app
+
+Tagged the image:
+-- docker image tag loco-app-image saurabhlatambale/loco:v1
+
+Pushed the image to docker hub repo:
+-- docker push saurabhlatambale/loco:v1
+
+Deleted Unwanted Local Images to clear space:
+-- docker rmi saurabhlatambale/loco:v1
+-- docker rmi loco-app-image
+
+---------------------------------------------
+
+4. Deployment of Loco App:
+kubectl apply -f namespace-yamls/loco-namespace.yaml
+kubectl apply -f service-yamls/loco-service.yaml --namespace=loco
+kubectl apply -f deployments-yamls/loco-deployment.yaml --namespace=loco
+kubectl apply -f hpa-yamls/loco-hpa.yaml --namespace=loco
+
+---------------------------------------------
+
+5. Some Useful commands for checking things on Cluster:
+-- kubectl get ns
+-- kubectl apply -f service-yamls/loco-service.yaml --namespace=loco
+-- kubectl get svc -A
+-- kubectl apply -f deployments-yamls/loco-deployment.yaml --namespace=loco
+-- kubectl get po -n loco --watch
+-- kubectl logs loco-app-696946554f-fjv6s -n loco -f
+-- kubectl get hpa -A
+
+---------------------------------------------
+
+6. Installed Metrics Server:
+
+-- kubectl apply -f metrics-server-yamls/components.yaml
+
+Took reference from - https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+---------------------------------------------
+
+
+7. Service Discovery on "localhost" from minikube:
+If you have NodePort service design this will work.
+-- minikube service loco-app-service -n loco
+-- kubectl port-forward service/loco-app-service 80:80 -n loco
+
+OR
+
+8. Installed Nginx Ingress Controller:
+First created ClusterIp service for loco-app.
+-- minikube addons enable ingress
+-- kubectl apply -f nginx-yamls/loco-ingress.yaml --namespace=loco
+
+Command to enable minikube tunnel
+-- minikube tunnel
+
+Tested http://localhost:80 Successfully!
+
+---------------------------------------------
+
+9. Testing HPA by increasing stress on pods:
+
+Command to get inside a pod:
+-- kubectl exec -it loco-app-696946554f-fjv6s --namespace=loco -- /bin/sh
+
+Command to install stress-ng package:
+-- apk add --no-cache stress-ng
+
+Command to stress the CPU with 4 workers for 60 seconds:
+-- stress-ng --cpu 4 --timeout 60s
+
+Command to monitor HPA:
+-- kubectl get hpa -A --watch
+
+Command to Monitor pods:
+-- kubectl get po -n loco --watch
+
+---------------------------------------------
+
+10. Troubleshooting and Analysis while Deployment:
+
+-----------------------
+
+-- Issues while Installing HPA:
+While applying hpa, as minikube cluster was not supporting "apiVersion: autoscaling/v2beta2" and it was asking me to install CRDs first.
+First I checked all the api-versions on cluster:
+
+kubectl api-versions
+For autoscaling, "autoscaling/v2" was present.
+
+So I updated the yaml file to take apiVersion
+and re-applied the yaml file.
+
+-----------------------
+
+-- Issues in Metrics Server:
+After installing HPA successfully, I was not able to get the proper output for hpa.
+
+(.venv) PS C:\Users\Saurabh\Loco\Loco> kubectl get hpa -A
+NAMESPACE   NAME       REFERENCE             TARGETS              MINPODS   MAXPODS   REPLICAS   AGE
+loco        loco-hpa   Deployment/loco-app   cpu: <unknown>/60%   3         10        3          7m52s
+
+I got to know that to get CPU output I need to install metrics-server on the cluster. So I installed metrics-server.
+After installing metrics-server still it was not working.
+I described metrics-server po and checked for logs.
+
+tls: failed to verify certificate: x509: cannot validate certificate for 192.168.49.2 because it doesn't contain any IP SANs) occurs because the metrics-server is unable to validate the certificate for the kubelet API, as it expects the certificate to include a Subject Alternative Name (SAN) for the IP of the node.
+
+The issue was --kubelet-insecure-tls was not added in specs for metrics-server.
+Added it into metrics-server yaml and re-deployed metrics-server
+ --kubelet-insecure-tls  # Added this line
+
+(.venv) PS C:\Users\Saurabh\Loco\Loco> kubectl get hpa -A
+NAMESPACE   NAME       REFERENCE             TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+loco        loco-hpa   Deployment/loco-app   cpu: 0%/60%   3         10        3          42m
+(.venv) PS C:\Users\Saurabh\Loco\Loco>
+
+-----------------------
+
+-- Issues in Testing HPA:
+
+I needed to know that HPA is able to manage the CPU utilization. So I started testing pods for it.
+
+minikube service loco-app-service -n loco
+
+OR
+
+kubectl port-forward service/loco-app-service 80:80 -n loco
+
+OR
+
+Installed nginx-ingress.yaml
+and ran command "minikube tunnel" it helps in:
+Exposes services of type LoadBalancer to your local machine.
+Provides an external IP to interact with services running inside Minikube.
+Useful when testing production-like service exposure locally.
+
+I tested "http://localhost:80"
+
+Afterwards I wanted to increase load on pod, so I logged into 1 loco-app pod to increase the load I wanted to run stress command
+
+-- stress --cpu 1 --timeout 600
+This command will use 100% of 1 CPU core for 600 seconds (10 minutes)
+but after logging into pod and tried installing stress package I found out that alpine image based container do not support stress. Hence I looked for an alternative and found out stress-ng package and installed.
+
+---------------------------------------------

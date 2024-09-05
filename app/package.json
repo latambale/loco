@@ -1,0 +1,12 @@
+{
+  "name": "loco-node-app",
+  "version": "1.0.0",
+  "description": "Loco Node.js app",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
