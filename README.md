@@ -10,4 +10,4 @@
 
 8. deploy-loco.ps1 - Is simple deploy script created to deploy/refresh loco application in single command on cluster.
 Usage:
-    : .\deploy-loco.ps1 -AppName <application_name>
+Options: .\deploy-loco.ps1 -AppName <application_name>
